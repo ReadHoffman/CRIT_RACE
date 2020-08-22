@@ -14,6 +14,7 @@ import random
 from defs import *
 from course import Course
 from bike import Bike
+from shapely.geometry import LineString
 
 
 def update_label(data, title, font, x, y, gameDisplay):
@@ -41,6 +42,8 @@ def run_game():
 #    pipes = PipeCollection(gameDisplay)
 #    pipes.create_new_set()
     course = Course(gameDisplay)
+    course.load_course()
+
 #    birds = BirdCollection(gameDisplay)
     bike = Bike(gameDisplay)
 
@@ -65,8 +68,8 @@ def run_game():
                 running = False
 
 #        pipes.update(dt)
-        course.update()
-        bike.update()
+        course.update_game()
+        bike.update(course)
         num_alive = 0 #birds.update(dt, pipes.pipes)
 
         if num_alive == 0:
