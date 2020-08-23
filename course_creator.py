@@ -66,6 +66,7 @@ def run_course_creator():
 #        for listitem in course.course_points:
 #            filehandle.write('%s\n' % listitem)
     
+    
     with open(COURSE_FILENAME, 'w', newline='') as csvfile:
         fieldnames = ['i','x', 'y']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)

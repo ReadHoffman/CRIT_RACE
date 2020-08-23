@@ -17,19 +17,6 @@ from bike import Bike
 from shapely.geometry import LineString
 
 
-def update_label(data, title, font, x, y, gameDisplay):
-    label = font.render('{} {}'.format(title, data), 1, DATA_FONT_COLOR)
-    gameDisplay.blit(label, (x, y))
-    return y
-
-def update_data_labels(gameDisplay, dt, game_time, num_iterations, num_alive, font):
-    y_pos = 10
-    gap = 20
-    x_pos = 10
-    y_pos = update_label(round(1000/dt,2), 'FPS', font, x_pos, y_pos + gap, gameDisplay)
-    y_pos = update_label(round(game_time/1000,2),'Game time', font, x_pos, y_pos + gap, gameDisplay)
-    y_pos = update_label(num_iterations,'Iteration', font, x_pos, y_pos + gap, gameDisplay)
-    y_pos = update_label(num_alive,'Alive', font, x_pos, y_pos + gap, gameDisplay)
 
 def run_game():
 
@@ -42,10 +29,10 @@ def run_game():
 #    pipes = PipeCollection(gameDisplay)
 #    pipes.create_new_set()
     course = Course(gameDisplay)
-    course.load_course()
+    course.import_course()
 
 #    birds = BirdCollection(gameDisplay)
-    bike = Bike(gameDisplay)
+    bike = Bike(gameDisplay,add_pos(course.course_points[1].pos,(0,course.course_width*.1)) )
 
 
     label_font = pygame.font.SysFont("arial", DATA_FONT_SIZE)
@@ -89,3 +76,4 @@ def run_game():
 
 if __name__== "__main__":
     run_game()
+    

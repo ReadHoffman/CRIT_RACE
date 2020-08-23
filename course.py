@@ -10,18 +10,29 @@ import math
 import operator
 import csv
 from shapely.geometry import LineString
+from itertools import cycle
 
 class Course_Point:
-    def __init__(self,pos,i):
+    def __init__(self,pos):
         self.pos = pos
-        self.i = i
+        self.i = 0
         self.diameter = COURSE_WIDTH
         self.radius = self.diameter/2
         self.radians_lag_lead = 0
+        self.radians_lag_lead_midpoint = 0
+        self.radians_lag_lead_inverse = 0
+        self.radians_lag_lead_midpoint_inverse = 0
         self.radians_lag_lead2 = 0
         self.end_point = False
-        self.distance_prior_point = 0
-        self.distance_next_point = 0
+        self.distance_to_point_lag = 0
+        self.vector_to_point_lag = 0
+        self.radians_to_point_lag = 0
+        self.distance_to_point_lead = 0
+        self.vector_to_point_lead = 0
+        self.radians_to_point_lead = 0
+        self.distance_to_point_lead2 = 0
+        self.vector_to_point_lead2 = 0
+        self.radians_to_point_lead2 = 0
         self.pos_left = 0
         self.pos_right = 0
 
@@ -41,65 +52,110 @@ class Course:
             loaded_points = []
             for row in reader:
 #                data = (int(row["index"]),int(row["x"]), int(row["y"]))
-                point = Course_Point( ( int(row["x"]),int(row["y"]) ) , int(row["i"]) )
+                point = Course_Point( ( int(row["x"]),int(row["y"]) )  )
                 loaded_points.append(point)
             self.course_points = loaded_points
-            
+            self.reset_course_point_index()
+        self.compute_course_point_relationships()
+        self.create_boundaries()
+    
     def create_course_points(self,click,mouse_pos):
         if click==True:
             new_point_check = [distance_between(mouse_pos,course_point.pos) > self.course_width/2 for course_point in self.course_points ]
             if len(new_point_check)==0 or all(new_point_check):
-                point = Course_Point(mouse_pos,len(self.course_points))
+                point = Course_Point(mouse_pos)
                 self.course_points.append(point)
+                
+                #on first click, porduce starting area with space for bikes ahead of and behind start line
+                if len(self.course_points)==1:
+                    point_lead = Course_Point(add_pos(self.course_points[0].pos,(self.course_width*2,0)))
+                    self.course_points.append(point_lead)
+                    point_lag = Course_Point(add_pos(self.course_points[0].pos,(-self.course_width*2,0)))
+                    self.course_points.insert(0,point_lag)
+                    
+    def reset_course_point_index(self):
+        for i, point in enumerate(self.course_points):
+            point.i = i
     
-    def load_course(self):
-        self.import_course()
-        point_list = [course_point.pos for course_point in self.course_points]
-        
+    def compute_course_point_relationships(self):
         ## the following steps will allow our formula to reference surrounding points
-        #add last point to front of list
-        point_list.insert(0,point_list[len(point_list)-1])
+        ## and update data for that point accordingly
+        point_list = self.course_points
+        point_list_len = len(point_list)
         
-        #take oringinal starting point and add it to the end
-        point_list.append(point_list[1])
-        for i, point in enumerate(point_list):
-            if i==0 or i==len(point_list)-1: continue
-            else:
-                point1 = point_list[i-1]
-                print(i-1,' ',point1)
-                point2 = point
-                print(i,' ',point2)
-                point3 = point_list[i+1]
-                print(i+1,' ',point3)
-#                
-#                point1_2_dist = distance_between(point1,point2)
-#                point1_3_dist_halved = distance_between(point1,point3)/2 
+#        #add last point to front of list
+#        point_list.insert(0,point_list[point_list_len-1])
+#        point_list.insert(0,point_list[point_list_len-1])
+#        
+#        #take oringinal starting point 1 an 2 and add it to the end
+#        point_list.append(point_list[1])
+#        point_list.append(point_list[2])
+        
+        for i in range(point_list_len):
+            i_lag = i-1
+            i_lead = i+1
+            i_lead2 = i+2
+            if i ==1 :
+                i_lag = point_list_len-1
+#                i_lead = i+1
+#                i_lead2 = i+2
+            if i ==point_list_len-2 :
+#                i_lag = i-1
+#                i_lead = i+1
+                i_lead2 = 0
+            if i ==point_list_len-1 :
+#                i_lag = i-1
+                i_lead = 0
+                i_lead2 = 1
                 
-                point1_from_origin2 = tuple(map(operator.sub,point1,point2))
-                point3_from_origin2 = tuple(map(operator.sub,point3,point2))
-                angle_to_point1 = math.atan2(*point1_from_origin2)#-math.pi/2
-                angle_to_point3 = math.atan2(*point3_from_origin2)#-math.pi/2
-                angles_list = [angle_to_point1,angle_to_point3]
-                point2_radians = sum(angles_list)/len(angles_list)
-                point2_radians_inverse = point2_radians+math.pi
-
-                self.outer_verticies.append(add_pos(new_pos(point2_radians, self.course_width/2),point ) )
-                self.inner_verticies.append(add_pos(new_pos(point2_radians_inverse, self.course_width/2),point ) )
+            point_lag = point_list[i_lag]
+            point_main = point_list[i]
+            point_lead = point_list[i_lead]
+            point_lead2 = point_list[i_lead2]
+            
+            point_main.distance_to_point_lag = distance_between(point_lag.pos,point_main.pos)
+            point_main.distance_to_point_lead = distance_between(point_main.pos,point_lead.pos)
+            point_main.distance_to_point_lead2 = distance_between(point_main.pos,point_lead2.pos)
+            
+            point_main.vector_to_point_lag = tuple(map(operator.sub,point_lag.pos,point_main.pos))
+            point_main.vector_to_point_lead = tuple(map(operator.sub,point_lead.pos,point_main.pos))
+            point_main.vector_to_point_lead2 = tuple(map(operator.sub,point_lead2.pos,point_main.pos))
+            
+            point_main.radians_to_point_lag = math.atan2(*point_main.vector_to_point_lag)-math.pi/2
+            point_main.radians_to_point_lead = math.atan2(*point_main.vector_to_point_lead)-math.pi/2
+            point_main.radians_to_point_lead2 = math.atan2(*point_main.vector_to_point_lead2)-math.pi/2
+            
+            point_main.radians_lag_lead = point_main.radians_to_point_lag-point_main.radians_to_point_lead
+            point_main.radians_lag_lead2 = point_main.radians_to_point_lag-point_main.radians_to_point_lead2
+            angles_list_lag_lead = [point_main.radians_to_point_lag,point_main.radians_to_point_lead]
+            point_main.radians_lag_lead_midpoint = sum(angles_list_lag_lead)/len(angles_list_lag_lead)
+            point_main.radians_lag_lead_midpoint_inverse = point_main.radians_lag_lead_midpoint+math.pi
+    
+    def create_boundaries(self):   
+        for point in self.course_points:
+            
+            #must multiply by -1 since pygame y axis flipped
+            inner = add_pos(new_pos(point.radians_lag_lead_midpoint*-1, point.radius),point.pos ) 
+            outer = add_pos(new_pos(point.radians_lag_lead_midpoint_inverse*-1, point.radius),point.pos )
+            
+            self.outer_verticies.append( outer )
+            self.inner_verticies.append( inner )
+        
+        #clean up intersections
+        course_points_len = len(self.course_points)
+        for i in range(course_points_len*2-1): 
+            if i>course_points_len-1: i = i-course_points_len-1
+            outer_point = self.outer_verticies[i]   
+            inner_point = self.inner_verticies[i]
+            
+            if i== 0: i_lag=len(self.course_points)-1
+            else: i_lag = i-1
+            if lines_intersect_bool(self.course_points[i].pos,self.course_points[i_lag].pos,self.inner_verticies[i],self.inner_verticies[i_lag]):
+                self.outer_verticies[i] = inner_point
+                self.inner_verticies[i] = outer_point
                 
-#        #check if lines intersect, if so, flip vertices
-#        vertices_len = len(self.outer_verticies)
-#        for i in range(vertices_len):
-#            next_i = i+1
-#            if next_i>vertices_len: next_i=0
-#            outer_point1, inner_point_1 = self.outer_verticies[i],self.inner_verticies[i]
-#            outer_point2, inner_point_2 = self.outer_verticies[next_i],self.inner_verticies[next_i]
-#            line = LineString([(bike_start),(bike_end)]) #LineString([(0, 0), (1, 1)])
-#            other = LineString([(start_point),(end_point)]) #LineString([(0, 1), (1, 0)])
-#            
-#            
-#            if line.intersects(other):
-#                pass
-                
+            
+            
     def draw_created_course(self):
         [pygame.draw.circle(self.gameDisplay, (255, 255, 255), course_point.pos,int(course_point.radius) ) for course_point in self.course_points]
         
@@ -108,8 +164,9 @@ class Course:
         self.draw_created_course()
 
     def draw_game(self):
-        pygame.draw.lines(self.gameDisplay, (255, 255, 255), False, self.outer_verticies)
-        pygame.draw.lines(self.gameDisplay, (255, 255, 255), False, self.inner_verticies)
+        pygame.draw.lines(self.gameDisplay, (100, 100, 100), True, [x.pos for x in self.course_points])
+        pygame.draw.lines(self.gameDisplay, (255, 255, 255), True, self.outer_verticies)
+        pygame.draw.lines(self.gameDisplay, (255, 255, 255), True, self.inner_verticies)
         
     def update_game(self):
         self.draw_game()
