@@ -23,13 +23,11 @@ class Bike:
         self.highlight = BIKE_HIGHLIGHT
         self.radius = BIKE_WIDTH
         self.pos = pos
+        self.pos_start = pos
         self.vector = (0,0)
         self.speed = 0
         self.radians_heading = 0
-        self.forward = True
-        self.brake = False
-        self.left = False
-        self.right = False
+        self.commands = [0,0,0,0]
         self.fitness = 0
         self.time_lived = 0
         self.nnet = Nnet(NNET_INPUTS, NNET_HIDDEN, NNET_OUTPUTS)
@@ -39,22 +37,22 @@ class Bike:
         self.dist_ahead_right = 0
         self.dist_ahead_left = 0
         self.dist_back = 0
-#        self.dist_forward_prior = 0
-#        self.dist_right_prior = 0
-#        self.dist_left_prior = 0
-#        self.dist_forward_right_prior = 0
-#        self.dist_forward_left_prior = 0
         self.alive = True
+        self.fitness = 0
+        self.time_lived = 0
         
         #vision
         self.wall_intersect_points = [(0,0),(0,0),(0,0),(0,0),(0,0),(0,0)] #idea
         self.vision_radian_delta = [0,-math.pi/2,math.pi/2,-math.pi/4,math.pi/4,math.pi]
-#        self.wall_ahead_point = (0,0)
-#        self.wall_right_point = (0,0)
-#        self.wall_left_point = (0,0)
-#        self.wall_ahead_right_point = (0,0)
-#        self.wall_ahead_left_point = (0,0)
-#        self.wall_back_point = (0,0)
+
+
+    def reset(self):
+        self.alive = True
+        self.speed = 0
+        self.fitness = 0
+        self.time_lived = 0
+        self.pos = self.pos_start
+
     
     def bike_line(self):
         start_pos = add_pos(new_pos(self.radians_heading,self.radius),self.pos)
@@ -92,12 +90,16 @@ class Bike:
             intersections_dist =[]
             for intersection in intersections:
                 intersections_dist.append(distance_between(line1_start,intersection))
-                
-            min_dist = min(intersections_dist) 
-            min_indices = [k for k, intersection_dist in enumerate(intersections_dist) if intersection_dist == min_dist] 
             
-            vision_points[j] = intersections[min(min_indices)]
-            vision_distances[j] = intersections_dist[min(min_indices)]
+            if len(intersections_dist)>0:
+                min_dist = min(intersections_dist) 
+                min_indices = [k for k, intersection_dist in enumerate(intersections_dist) if intersection_dist == min_dist] 
+                
+                vision_points[j] = intersections[min(min_indices)]
+                vision_distances[j] = intersections_dist[min(min_indices)]
+            else:
+                vision_points[j] = line1_start
+                vision_distances[j] = 0
 
 #    def update_vision_dist(self):
 #        bike_leading_point = self.bike_line()[0]
@@ -133,16 +135,14 @@ class Bike:
     
     def update_vector(self):
         if self.alive:
-            
-            self.forward = bool(random.getrandbits(1))
-            self.brake = bool(random.getrandbits(1))
-            self.left = bool(random.getrandbits(1))
-            self.right = bool(random.getrandbits(1))
-            
-            if self.forward==True : self.speed += .02 
-            if self.left==True: self.radians_heading -= .02
-            if self.brake==True: self.speed = max([self.speed-.02,0])
-            if self.right==True: self.radians_heading += .02
+            nnet_output = self.nnet.get_outputs([self.dist_ahead, self.dist_right, self.dist_left, self.dist_ahead_right, self.dist_ahead_left, self.dist_back])
+            for i in range(len(self.commands)):
+                self.commands[i] = nnet_output[i]
+
+            if self.commands[0]>=COMMAND_CHANCE_FORWARD : self.speed += .02 
+            if self.commands[1]>=COMMAND_CHANCE_TURN: self.radians_heading -= .02
+            if self.commands[2]>=COMMAND_CHANCE_SLOW: self.speed = max([self.speed-.02,0])
+            if self.commands[3]>=COMMAND_CHANCE_TURN: self.radians_heading += .02
             self.vector = new_pos(self.radians_heading,self.speed)
 
     def update_pos(self):
