@@ -64,6 +64,7 @@ class Bike:
             if lines_intersect_pos(line1[0], line1[1], line2[0], line2[1]):
                 if i==self.progress_line_max+1:
                     self.progress_line_max = i
+                    print(self.progress_line_max," achieved")
                     self.time_last_progress_line_achieved = game_time
     
     def bike_line(self):
@@ -179,7 +180,7 @@ class Bike:
                     self.alive = False
                     self.color = (0,255,0) #test
                     self.fitness = self.progress_line_max-distance_between(self.pos,course.course_points[self.progress_line_max+1].pos)/DISPLAY_W
-
+#                    print("prog line:",self.progress_line_max," fitness:",self.fitness)
 
     def get_inputs(self):
         inputs = [
@@ -232,14 +233,15 @@ class BikeCollection:
 
         #sort list to find the most fit
         self.bikes.sort(key=lambda x: x.fitness, reverse=True)
+        [print(x.fitness) for bike in self.bikes] #testing
 
-        cut_off = int(len(self.bikes) * MUTATION_CUT_OFF)
+        cut_off = int(len(self.bikes) * MUTATION_CUT_OFF) #cutoff is .4 right now
         good_bikes = self.bikes[0:cut_off]
         bad_bikes = self.bikes[cut_off:]
-        num_bad_to_take = int(len(self.bikes) * MUTATION_BAD_TO_KEEP)
+        num_bad_to_take = int(len(self.bikes) * MUTATION_BAD_TO_KEEP) #cutoff is .2 right now
 
-        for bikes in bad_bikes:
-            bikes.nnet.modify_weights()
+        for bike in bad_bikes:
+            bike.nnet.modify_weights()
 
         new_bikes = []
 
