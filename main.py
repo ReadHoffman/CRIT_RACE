@@ -13,7 +13,7 @@ import random
 #from nnet import Nnet
 from defs import *
 from course import Course
-from bike import Bike
+from bike import Bike, BikeCollection
 from shapely.geometry import LineString
 
 
@@ -31,8 +31,8 @@ def run_game():
     course = Course(gameDisplay)
     course.import_course()
 
-#    birds = BirdCollection(gameDisplay)
-    bike = Bike(gameDisplay,add_pos(course.course_points[1].pos,(0,course.course_width*.1)) )
+    bikes = BikeCollection(gameDisplay,course)
+#    bike = Bike(gameDisplay,add_pos(course.course_points[1].pos,(0,course.course_width*.1)) )
 
 
     label_font = pygame.font.SysFont("arial", DATA_FONT_SIZE)
@@ -54,19 +54,16 @@ def run_game():
             elif event.type == pygame.KEYDOWN:
                 running = False
 
-#        pipes.update(dt)
         course.update_game()
-        bike.update(course)
-        num_alive = 0 #birds.update(dt, pipes.pipes)
+        num_alive = bikes.update(course,game_time)
 
         if num_alive == 0:
-#            pipes.create_new_set()
-#            game_time = 0
-#            birds.evolve_population()
+            game_time = 0
+            bikes.evolve_population(course)
             num_iterations += 1
 
         update_data_labels(gameDisplay, dt, game_time, num_iterations, num_alive, label_font)
-        pygame.display.flip()
+        pygame.display.update()
     
     pygame.display.quit
     pygame.quit()

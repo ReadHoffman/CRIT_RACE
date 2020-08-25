@@ -45,6 +45,7 @@ class Course:
         self.course_points = []
         self.outer_verticies = [] #[(DISPLAY_W*1/10,DISPLAY_H*1/10),(DISPLAY_W*9/10,DISPLAY_H*1/10),(DISPLAY_W*9/10,DISPLAY_H*9/10),(DISPLAY_W*1/10,DISPLAY_H*9/10),(DISPLAY_W*1/10,DISPLAY_H*1/10)]
         self.inner_verticies = [] #[(DISPLAY_W*3/10,DISPLAY_H*3/10),(DISPLAY_W*7/10,DISPLAY_H*3/10),(DISPLAY_W*7/10,DISPLAY_H*7/10),(DISPLAY_W*3/10,DISPLAY_H*7/10),(DISPLAY_W*3/10,DISPLAY_H*3/10)]
+        self.progress_lines = []
     
     def import_course(self):
         with open(COURSE_FILENAME,newline='') as csvfile:
@@ -72,6 +73,7 @@ class Course:
                     self.course_points.append(point_lead)
                     point_lag = Course_Point(add_pos(self.course_points[0].pos,(-self.course_width*2,0)))
                     self.course_points.insert(0,point_lag)
+                
                     
     def reset_course_point_index(self):
         for i, point in enumerate(self.course_points):
@@ -154,6 +156,7 @@ class Course:
                 self.outer_verticies[i] = inner_point
                 self.inner_verticies[i] = outer_point
                 
+        self.progress_lines = [(self.inner_verticies[i] ,self.outer_verticies[i]) for i in range(len(self.inner_verticies))]                
             
             
     def draw_created_course(self):
@@ -167,6 +170,7 @@ class Course:
         pygame.draw.lines(self.gameDisplay, (100, 100, 100), True, [x.pos for x in self.course_points])
         pygame.draw.lines(self.gameDisplay, (255, 255, 255), True, self.outer_verticies)
         pygame.draw.lines(self.gameDisplay, (255, 255, 255), True, self.inner_verticies)
+        [pygame.draw.lines(self.gameDisplay, (50, 50, 50), True, progress_line) for progress_line in self.progress_lines]
         
     def update_game(self):
         self.draw_game()
