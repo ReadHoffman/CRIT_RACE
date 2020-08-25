@@ -73,8 +73,8 @@ def run_course_creator():
     
         writer.writeheader()
         
-        for course_point in course.course_points:
-            writer.writerow({'i':course_point.i,'x': course_point.pos[0], 'y': course_point.pos[1]})
+        for i, course_point in enumerate(course.course_points):
+            writer.writerow({'i':i,'x': course_point.pos[0], 'y': course_point.pos[1]})
 
     
 #    

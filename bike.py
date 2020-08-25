@@ -133,7 +133,11 @@ class Bike:
     
     def update_vector(self):
         if self.alive:
-            nnet_output = self.nnet.get_outputs([self.dist_ahead, self.dist_right, self.dist_left, self.dist_ahead_right, self.dist_ahead_left, self.dist_back])
+            max_dist = distance_between((DISPLAY_W,DISPLAY_H),(0,0))
+            inputs_list = [self.dist_ahead, self.dist_right, self.dist_left, self.dist_ahead_right, self.dist_ahead_left, self.dist_back]
+            inputs_list_denominator = [DISPLAY_W, COURSE_WIDTH, COURSE_WIDTH, COURSE_WIDTH*2, COURSE_WIDTH*2, DISPLAY_W]
+            model_inputs = [inputs/inputs_list_denominator[i] for i, inputs in enumerate(inputs_list)]
+            nnet_output = self.nnet.get_outputs(model_inputs)
             for i in range(len(self.commands)):
                 self.commands[i] = nnet_output[i]
 
