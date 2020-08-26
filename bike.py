@@ -28,7 +28,7 @@ class Bike:
         self.vector = (0,0)
         self.speed = 0
         self.radians_heading = 0
-        self.commands = [0,0,0,0]#forward,right,left,slow
+        self.commands = [0,0]
         self.fitness = 0
         self.time_lived = 0
         self.nnet = Nnet(NNET_INPUTS, NNET_HIDDEN, NNET_OUTPUTS)
@@ -48,6 +48,11 @@ class Bike:
         self.wall_intersect_points = [(0,0),(0,0),(0,0),(0,0),(0,0),(0,0)] #ahead, right, left, ahead-right, ahead-left, back
         self.vision_radian_delta = [0,-math.pi/2,math.pi/2,-math.pi/4,math.pi/4,math.pi]
 
+    def heading_gap_to_next_waypoint(self,course):
+        # for model input
+        next_waypoint = course.course_points[self.progress_line_max+1].pos
+        vector = tuple(map(operator.sub,self.pos,next_waypoint  ))
+        return abs(math.atan2(*vector)-self.radians_heading)+math.pi
 
     def reset(self):
         self.alive = True
@@ -64,7 +69,7 @@ class Bike:
             if lines_intersect_pos(line1[0], line1[1], line2[0], line2[1]):
                 if i==self.progress_line_max+1:
                     self.progress_line_max = i
-                    print(self.progress_line_max," achieved")
+#                    print(self.progress_line_max," achieved")
                     self.time_last_progress_line_achieved = game_time
     
     def bike_line(self):
@@ -113,7 +118,7 @@ class Bike:
             
     
     def draw(self):
-        pygame.draw.circle(self.gameDisplay, self.color, (int(self.pos[0]),int(self.pos[1])), self.radius)
+#        pygame.draw.circle(self.gameDisplay, self.color, (int(self.pos[0]),int(self.pos[1])), self.radius) #removed for speed
         start_pos, end_pos = self.bike_line()
         pygame.draw.line(self.gameDisplay, self.highlight, start_pos, end_pos, BIKE_HEADING_WIDTH)
         
@@ -126,26 +131,26 @@ class Bike:
         self.get_vision_intersection_point(course)
 #        self.update_vision_dist()
         self.draw()
-        self.update_vector()
+        self.update_vector(course)
         self.update_fitness(course,game_time)
         self.check_collision(course,game_time)
         self.update_pos()
         
     
-    def update_vector(self):
+    def update_vector(self,course):
         if self.alive:
             max_dist = distance_between((DISPLAY_W,DISPLAY_H),(0,0))
-            inputs_list = [self.dist_ahead, self.dist_right, self.dist_left, self.dist_ahead_right, self.dist_ahead_left, self.dist_back]
-            inputs_list_denominator = [DISPLAY_W, COURSE_WIDTH, COURSE_WIDTH, COURSE_WIDTH*2, COURSE_WIDTH*2, DISPLAY_W]
+            inputs_list = [self.dist_ahead, self.dist_right, self.dist_left, self.dist_ahead_right, self.dist_ahead_left, self.dist_back,self.heading_gap_to_next_waypoint(course)]
+            inputs_list_denominator = [DISPLAY_W, COURSE_WIDTH/2, COURSE_WIDTH/2, COURSE_WIDTH, COURSE_WIDTH, DISPLAY_W,math.pi*2]
             model_inputs = [inputs/inputs_list_denominator[i] for i, inputs in enumerate(inputs_list)]
             nnet_output = self.nnet.get_outputs(model_inputs)
             for i in range(len(self.commands)):
                 self.commands[i] = nnet_output[i]
 
             if self.commands[0]>=COMMAND_CHANCE_FORWARD : self.speed += BIKE_ACCELERATION 
-            if self.commands[1]>=COMMAND_CHANCE_TURN: self.radians_heading -= BIKE_TURN_INCREMENT
-            if self.commands[2]>=COMMAND_CHANCE_SLOW: self.speed = max([self.speed-BIKE_DECELERATION,0])
-            if self.commands[3]>=COMMAND_CHANCE_TURN: self.radians_heading += BIKE_TURN_INCREMENT
+            if self.commands[0]<=COMMAND_CHANCE_SLOW: self.speed = max([self.speed-BIKE_DECELERATION,0])
+            if self.commands[1]>=COMMAND_CHANCE_TURN_RIGHT: self.radians_heading -= BIKE_TURN_INCREMENT
+            if self.commands[1]<=COMMAND_CHANCE_TURN_LEFT: self.radians_heading += BIKE_TURN_INCREMENT
             self.vector = new_pos(self.radians_heading,self.speed)
 
     def update_pos(self):
@@ -179,8 +184,7 @@ class Bike:
                     self.vector = (0,0)
                     self.alive = False
                     self.color = (0,255,0) #test
-                    self.fitness = self.progress_line_max-distance_between(self.pos,course.course_points[self.progress_line_max+1].pos)/DISPLAY_W
-#                    print("prog line:",self.progress_line_max," fitness:",self.fitness)
+                    self.fitness = self.progress_line_max-distance_between(self.pos,course.course_points[self.progress_line_max+1].pos)/DISPLAY_W-(self.heading_gap_to_next_waypoint(course)/(math.pi*100))
 
     def get_inputs(self):
         inputs = [
@@ -189,11 +193,6 @@ class Bike:
             self.dist_left,
             self.dist_forward_right,
             self.dist_forward_left,
-            self.dist_forward_prior,
-            self.dist_right_prior,
-            self.dist_left_prior,
-            self.dist_forward_right_prior,
-            self.dist_forward_left_prior,
         ]
 
         return inputs
@@ -233,7 +232,8 @@ class BikeCollection:
 
         #sort list to find the most fit
         self.bikes.sort(key=lambda x: x.fitness, reverse=True)
-        [print(x.fitness) for bike in self.bikes] #testing
+        print("Fitness Results:")
+        [print(bike.fitness) for bike in self.bikes] #testing
 
         cut_off = int(len(self.bikes) * MUTATION_CUT_OFF) #cutoff is .4 right now
         good_bikes = self.bikes[0:cut_off]
@@ -252,7 +252,7 @@ class BikeCollection:
 
         new_bikes.extend(good_bikes)
 
-        children_needed = len(self.bikes) - len(new_bikes)
+#        children_needed = len(self.bikes) - len(new_bikes)
 
         while len(new_bikes) < len(self.bikes):
             idx_to_breed = np.random.choice(np.arange(len(good_bikes)), 2, replace=False)

@@ -65,3 +65,5 @@ class Nnet:
                     res[row][col] = ar2[row][col]
 
         return res
+
+
