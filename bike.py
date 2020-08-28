@@ -20,6 +20,7 @@ import numpy as np
 class Bike:
     def __init__(self,gameDisplay,course):
         self.gameDisplay = gameDisplay
+        self.course = course
         self.color = BIKE_COLOR
         self.highlight = BIKE_HIGHLIGHT
         self.radius = BIKE_WIDTH
@@ -29,8 +30,6 @@ class Bike:
         self.speed = 0
         self.radians_heading = 0
         self.commands = [0,0]
-        self.fitness = 0
-        self.time_lived = 0
         self.nnet = Nnet(NNET_INPUTS, NNET_HIDDEN, NNET_OUTPUTS)
         self.dist_ahead = 0
         self.dist_right = 0
@@ -40,9 +39,14 @@ class Bike:
         self.dist_back = 0
         self.alive = True
         self.fitness = 0
+        self.fitness_relativity = 0
         self.time_lived = 0
         self.progress_line_max = 0
         self.time_last_progress_line_achieved = 0
+        self.progress_window_min = 0
+        self.progress_window_max = 0
+        self.lap = 0
+        self.assessment_group = "Bad"
         
         #vision
         self.wall_intersect_points = [(0,0),(0,0),(0,0),(0,0),(0,0),(0,0)] #ahead, right, left, ahead-right, ahead-left, back
@@ -52,7 +56,7 @@ class Bike:
         # for model input
         next_waypoint = course.course_points[self.progress_line_max+1].pos
         vector = tuple(map(operator.sub,self.pos,next_waypoint  ))
-        return abs(math.atan2(*vector)-self.radians_heading)+math.pi
+        return abs(math.atan2(*vector)-self.radians_heading)
 
     def reset(self):
         self.alive = True
@@ -61,23 +65,47 @@ class Bike:
         self.time_lived = 0
         self.pos = self.pos_start
         self.color = BIKE_COLOR
+        self.progress_line_max = 0
+        self.time_last_progress_line_achieved = 0
+        self.time_lived = 0
+        self.radians_heading = 0
+        self.commands = [0,0]
         
-    def update_fitness(self,course,game_time):
+    def update_progress(self,course,game_time):
 #        if line intersects with progress line, get the progress line's index and that is the max score
+        prior_max_progress_line = self.progress_line_max
+        course_len = len(course.progress_lines)-1
         line1 = self.bike_line()
         for i,line2 in enumerate(course.progress_lines):
-            if lines_intersect_pos(line1[0], line1[1], line2[0], line2[1]):
+            if lines_intersect_bool(line1[0], line1[1], line2[0], line2[1]):
                 if i==self.progress_line_max+1:
                     self.progress_line_max = i
-#                    print(self.progress_line_max," achieved")
                     self.time_last_progress_line_achieved = game_time
+                    if prior_max_progress_line == course_len and self.progress_line_max == 0:
+                        self.lap +=1
+                        
+                lag_i = i-1
+                lead_i = i+1
+                if i == 0:
+                    lag_i = course_len
+                if i == course_len:
+                    lead_i = 0
+                self.progress_window_min = lag_i
+                self.progress_window_max = lead_i
+                    
+    def update_fitness(self,course):
+        fit_lap = self.lap*len(course.progress_lines)
+        fit_waypoint_progress = self.progress_line_max+1
+        fit_dist_to_waypoint = distance_between(self.pos,course.course_points[self.progress_line_max+1].pos)/DISPLAY_W
+        fit_heading = (self.heading_gap_to_next_waypoint(course)/(math.pi*100))
+        self.fitness = fit_lap+fit_waypoint_progress-fit_dist_to_waypoint-fit_heading
     
     def bike_line(self):
         start_pos = add_pos(new_pos(self.radians_heading,self.radius),self.pos)
         end_pos = add_pos(new_pos(self.radians_heading+math.pi,self.radius),self.pos)
         return (start_pos,end_pos)
     
-    def get_vision_intersection_point(self,course):
+    def get_vision_intersection_point(self,course,game_time):
         vision_points = self.wall_intersect_points
         vision_distances = [self.dist_ahead, self.dist_right, self.dist_left, self.dist_ahead_right, self.dist_ahead_left, self.dist_back ]
         
@@ -127,12 +155,10 @@ class Bike:
         
         
     def update(self,course,game_time):
-#        self.nnet.get_outputs(self.get_inputs())
-        self.get_vision_intersection_point(course)
-#        self.update_vision_dist()
         self.draw()
+#        self.get_vision_intersection_point(course,game_time)
         self.update_vector(course)
-        self.update_fitness(course,game_time)
+        self.update_progress(course,game_time)
         self.check_collision(course,game_time)
         self.update_pos()
         
@@ -156,46 +182,51 @@ class Bike:
     def update_pos(self):
         if self.alive:
             self.pos = tuple(map(operator.add, self.pos, self.vector))
-
-    def update_inputs(self, course):
-        #create a way to update all the measurements in get_inputs
-        pass
     
     def check_collision(self,course,game_time):
-        course_lines_list = [course.inner_verticies,course.outer_verticies]
+        course_vertices_list = [course.inner_verticies,course.outer_verticies]
         
-        for course_lines in course_lines_list:
-            course_lines_len = len(course_lines)
-            
-            for i, course_line in enumerate(course_lines):
-                start_point = course_line
-                if i+1==course_lines_len: end_point = course_lines[0]
-                else: end_point = course_lines[i+1]
-                
-                bike_start,bike_end = self.bike_line()
-                
-                line = LineString([(bike_start),(bike_end)]) #LineString([(0, 0), (1, 1)])
-                other = LineString([(start_point),(end_point)]) #LineString([(0, 1), (1, 0)])
-                
-                
-                if line.intersects(other) or game_time-self.time_last_progress_line_achieved>REQUIRED_PROGRESS:
-#                    print("Crash")
-                    self.speed = 0
-                    self.vector = (0,0)
-                    self.alive = False
-                    self.color = (0,255,0) #test
-                    self.fitness = self.progress_line_max-distance_between(self.pos,course.course_points[self.progress_line_max+1].pos)/DISPLAY_W-(self.heading_gap_to_next_waypoint(course)/(math.pi*100))
+#        for course_vertices in course_vertices_list:
+#            course_vertices_len = len(course_vertices)
+#            
+#            for i, course_line in enumerate(course_vertices): 
+#                start_point = course_line
+#                if i+1==course_vertices_len: end_point = course_vertices[0]
+#                else: end_point = course_vertices[i+1]
+#                
+#                bike_start,bike_end = self.bike_line()
+#                
+#                line = LineString([(bike_start),(bike_end)]) #LineString([(0, 0), (1, 1)])
+#                other = LineString([(start_point),(end_point)]) #LineString([(0, 1), (1, 0)])
+#                
+#                
+#                if line.intersects(other) or game_time-self.time_last_progress_line_achieved>REQUIRED_PROGRESS:
+##                    print("Crash")
+#                    self.speed = 0
+#                    self.vector = (0,0)
+#                    self.alive = False
+#                    self.color = (0,255,0) #test
+#                    self.update_fitness(course)
 
-    def get_inputs(self):
-        inputs = [
-            self.dist_forward,
-            self.dist_right,
-            self.dist_left,
-            self.dist_forward_right,
-            self.dist_forward_left,
-        ]
-
-        return inputs
+    def check_collision(self,course,game_time):
+        course_lines_list = [course.inner_lines,course.outer_lines]
+        
+        for course_lines in course_lines_list:            
+            for i, course_line in enumerate(course_lines)  :
+                if i==self.progress_window_min or i==self.progress_window_max-1:                 
+                    bike_start,bike_end = self.bike_line()
+                    
+                    line = LineString([(bike_start),(bike_end)]) #LineString([(0, 0), (1, 1)])
+                    other = LineString([*course_line]) #LineString([(0, 1), (1, 0)])
+                    
+                    
+                    if line.intersects(other) or game_time-self.time_last_progress_line_achieved>REQUIRED_PROGRESS:
+    #                    print("Crash")
+                        self.speed = 0
+                        self.vector = (0,0)
+                        self.alive = False
+                        self.color = (0,255,0) #test
+                        self.update_fitness(course)
 
     def create_offspring(p1, p2, gameDisplay,course):
         new_bike = Bike(gameDisplay,course)
@@ -232,35 +263,60 @@ class BikeCollection:
 
         #sort list to find the most fit
         self.bikes.sort(key=lambda x: x.fitness, reverse=True)
-        print("Fitness Results:")
-        [print(bike.fitness) for bike in self.bikes] #testing
+        
+        bikes_fitness = [bike.fitness for bike in self.bikes]
+        print("Fitness Results: ")
+        [print(bike.fitness) for bike in self.bikes]
+        bikes_fitness_min = min(bikes_fitness)
+        bikes_fitness_max = max(bikes_fitness)
+        bikes_fitness_abs_range = bikes_fitness_max-bikes_fitness_min
+        for bike in self.bikes:
+            bike.fitness_relativity = (bike.fitness-bikes_fitness_min)/(bikes_fitness_abs_range+.0001) #.001 to avoid dividing by zero
 
         cut_off = int(len(self.bikes) * MUTATION_CUT_OFF) #cutoff is .4 right now
         good_bikes = self.bikes[0:cut_off]
-        bad_bikes = self.bikes[cut_off:]
-        num_bad_to_take = int(len(self.bikes) * MUTATION_BAD_TO_KEEP) #cutoff is .2 right now
-
-        for bike in bad_bikes:
-            bike.nnet.modify_weights()
-
+#        good_fitness_min = min([bike.fitness for bike in self.bikes[0:cut_off]])
+#        for bike in self.bikes:
+#            if bike.fitness >=good_fitness_min:
+#                bike.assessment_group = "Good"
+                
+#        bad_bikes = self.bikes[cut_off:]
+#        num_bad_to_take = int(len(self.bikes) * MUTATION_BAD_TO_KEEP) #cutoff is .2 right now
+#
+#        for bike in bad_bikes:
+#            bike.nnet.modify_weights(1-MUTATION_PCT_WEIGHTS_TO_CHANGE)
+#
         new_bikes = []
-
-        idx_bad_to_take = np.random.choice(np.arange(len(bad_bikes)), num_bad_to_take, replace=False)
-
-        for index in idx_bad_to_take:
-            new_bikes.append(bad_bikes[index])
+#
+#        idx_bad_to_take = np.random.choice(np.arange(len(bad_bikes)), num_bad_to_take, replace=False)
+#
+#        for index in idx_bad_to_take:
+#            new_bikes.append(bad_bikes[index])
 
         new_bikes.extend(good_bikes)
 
 #        children_needed = len(self.bikes) - len(new_bikes)
 
+#        while len(new_bikes) < len(self.bikes):
+#            idx_to_breed = np.random.choice(np.arange(len(good_bikes)), 2, replace=False)
+#            if idx_to_breed[0] != idx_to_breed[1]:
+#                parent_list = [good_bikes[idx_to_breed[1]] , good_bikes[idx_to_breed[0]] ]
+#                new_bike = Bike.create_offspring(parent_list[0], parent_list[1], self.gameDisplay,course)
+#                offspring_fitness_relativity_avg = sum([x.fitness_relativity for x in parent_list]) / len(parent_list)
+#                if random.random() < MUTATION_MODIFY_CHANCE_LIMIT: #.4
+#                    print("Offspring relativity avg:",offspring_fitness_relativity_avg," % weights changed:",1-offspring_fitness_relativity_avg*MUTATION_WEIGHT_MODIFY_FACTOR)
+#                    new_bike.nnet.modify_weights(offspring_fitness_relativity_avg*MUTATION_WEIGHT_MODIFY_FACTOR) 
+#                new_bikes.append(new_bike)
+        i = 0
         while len(new_bikes) < len(self.bikes):
-            idx_to_breed = np.random.choice(np.arange(len(good_bikes)), 2, replace=False)
-            if idx_to_breed[0] != idx_to_breed[1]:
-                new_bike = Bike.create_offspring(good_bikes[idx_to_breed[0]], good_bikes[idx_to_breed[1]], self.gameDisplay,course)
-                if random.random() < MUTATION_MODIFY_CHANCE_LIMIT:
-                    new_bike.nnet.modify_weights()
-                new_bikes.append(new_bike)
+            if i % 2 == 0:
+                new_bike = Bike.create_offspring(self.bikes[0], self.bikes[0], self.gameDisplay,course)
+            else:
+                new_bike = Bike.create_offspring(self.bikes[1], self.bikes[1], self.gameDisplay,course)
+            new_bike.nnet.modify_weights(MUTATION_PCT_WEIGHTS_TO_CHANGE) 
+            new_bikes.append(new_bike)
+
+
 
         for bike in new_bikes:
             bike.reset();

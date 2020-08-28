@@ -32,19 +32,24 @@ class Nnet:
         outputs = self.get_outputs(inputs_list)
         return np.max(outputs)
 
-    def modify_weights(self):
-        Nnet.modify_array(self.weight_input_hidden)
-        Nnet.modify_array(self.weight_hidden_output)
+    def modify_weights(self,degree_of_change):
+        Nnet.modify_array(self.weight_input_hidden,degree_of_change)
+        Nnet.modify_array(self.weight_hidden_output,degree_of_change)
 
     def create_mixed_weights(self, net1, net2):
         self.weight_input_hidden = Nnet.get_mix_from_arrays(net1.weight_input_hidden,  net2.weight_input_hidden)
         self.weight_hidden_output = Nnet.get_mix_from_arrays(net1.weight_hidden_output,  net2.weight_hidden_output)       
 
-    def modify_array(a):
+#    def modify_array(a,degree_of_change=0):
+#        for x in np.nditer(a, op_flags=['readwrite']):
+#            if random.random() < 1-degree_of_change: #MUTATION_WEIGHT_MODIFY_CHANCE
+#                x[...] = np.random.random_sample() - 0.5
+                
+    def modify_array(a,pct_of_weights_to_change):
         for x in np.nditer(a, op_flags=['readwrite']):
-            if random.random() < MUTATION_WEIGHT_MODIFY_CHANCE:
+            if random.random() < pct_of_weights_to_change: 
                 x[...] = np.random.random_sample() - 0.5
-
+                
     def get_mix_from_arrays(ar1, ar2):
 
         total_entries = ar1.size

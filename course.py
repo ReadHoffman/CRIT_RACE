@@ -43,8 +43,11 @@ class Course:
         self.inner_num = 8
         self.course_width = COURSE_WIDTH
         self.course_points = []
-        self.outer_verticies = [] #[(DISPLAY_W*1/10,DISPLAY_H*1/10),(DISPLAY_W*9/10,DISPLAY_H*1/10),(DISPLAY_W*9/10,DISPLAY_H*9/10),(DISPLAY_W*1/10,DISPLAY_H*9/10),(DISPLAY_W*1/10,DISPLAY_H*1/10)]
-        self.inner_verticies = [] #[(DISPLAY_W*3/10,DISPLAY_H*3/10),(DISPLAY_W*7/10,DISPLAY_H*3/10),(DISPLAY_W*7/10,DISPLAY_H*7/10),(DISPLAY_W*3/10,DISPLAY_H*7/10),(DISPLAY_W*3/10,DISPLAY_H*3/10)]
+        self.outer_verticies = [] 
+        self.inner_verticies = [] 
+        self.course_lines = []
+        self.outer_lines = [] 
+        self.inner_lines = [] 
         self.progress_lines = []
     
     def import_course(self):
@@ -52,13 +55,13 @@ class Course:
             reader = csv.DictReader(csvfile)
             loaded_points = []
             for row in reader:
-#                data = (int(row["index"]),int(row["x"]), int(row["y"]))
                 point = Course_Point( ( int(row["x"]),int(row["y"]) )  )
                 loaded_points.append(point)
             self.course_points = loaded_points
             self.reset_course_point_index()
         self.compute_course_point_relationships()
         self.create_boundaries()
+        self.create_course_lines()
     
     def create_course_points(self,click,mouse_pos):
         if click==True:
@@ -73,7 +76,22 @@ class Course:
                     self.course_points.append(point_lead)
                     point_lag = Course_Point(add_pos(self.course_points[0].pos,(-self.course_width*2,0)))
                     self.course_points.insert(0,point_lag)
-                
+    
+    def create_lines_from_points(self,points):
+        point_list_len = len(points)
+        
+        lines = []
+        for i in range(point_list_len):
+            lead_i = i+1
+            if i == point_list_len-1:
+                lead_i = 0
+            lines.append( ((points[i]),(points[lead_i])) )
+        return lines
+    
+    def create_course_lines(self):
+        self.course_lines = self.create_lines_from_points(self.course_points)
+        self.outer_lines = self.create_lines_from_points(self.outer_verticies)
+        self.inner_lines = self.create_lines_from_points(self.inner_verticies)
                     
     def reset_course_point_index(self):
         for i, point in enumerate(self.course_points):
@@ -99,11 +117,7 @@ class Course:
             i_lead2 = i+2
             if i ==1 :
                 i_lag = point_list_len-1
-#                i_lead = i+1
-#                i_lead2 = i+2
             if i ==point_list_len-2 :
-#                i_lag = i-1
-#                i_lead = i+1
                 i_lead2 = 0
             if i ==point_list_len-1 :
 #                i_lag = i-1
