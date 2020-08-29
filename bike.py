@@ -307,12 +307,9 @@ class BikeCollection:
 #                    print("Offspring relativity avg:",offspring_fitness_relativity_avg," % weights changed:",1-offspring_fitness_relativity_avg*MUTATION_WEIGHT_MODIFY_FACTOR)
 #                    new_bike.nnet.modify_weights(offspring_fitness_relativity_avg*MUTATION_WEIGHT_MODIFY_FACTOR) 
 #                new_bikes.append(new_bike)
-        i = 0
+
         while len(new_bikes) < len(self.bikes):
-            if i % 2 == 0:
-                new_bike = Bike.create_offspring(self.bikes[0], self.bikes[0], self.gameDisplay,course)
-            else:
-                new_bike = Bike.create_offspring(self.bikes[1], self.bikes[1], self.gameDisplay,course)
+            new_bike = Bike.create_offspring(self.bikes[0], self.bikes[0], self.gameDisplay,course)
             new_bike.nnet.modify_weights(MUTATION_PCT_WEIGHTS_TO_CHANGE) 
             new_bikes.append(new_bike)
 
