@@ -6,7 +6,9 @@ Created on Wed Aug 19 17:52:09 2020
 """
 import math
 import operator
-from shapely.geometry import LineString, Point
+from shapely.geometry import LineString#, Point
+#import neat
+#import os
 
 def update_label(data, title, font, x, y, gameDisplay):
     label = font.render('{} {}'.format(title, data), 1, DATA_FONT_COLOR)
@@ -72,7 +74,15 @@ def lines_intersect_pos2(line1, line2):
         result = x, y
     return result
 
+# Function to sort the list by second item of tuple 
+def Sort_Tuple(tup):  
+  
+    # reverse = None (Sorts in Ascending order)  
+    # key is set to sort using second element of  
+    # sublist lambda has been used  
+    return(sorted(tup, key = lambda x: x[1]))  
 
+num_iterations=0                  
 
 
 DISPLAY_W=1000
@@ -87,17 +97,19 @@ COURSE_COLOR = (255, 255, 255)
 
 BLACK = (0, 0, 0)
 
-BIKE_STARTING_OFFSET_X = 30
+BIKE_STARTING_OFFSET_X = 60
 BIKE_COLOR = (0, 0, 255)
 BIKE_HIGHLIGHT = (255, 255, 255)
 BIKE_WIDTH = 6
+BIKE_VISION_MAX = BIKE_WIDTH*20
 BIKE_HEADING_WIDTH = 2
 BIKE_ACCELERATION = .05
-BIKE_TURN_INCREMENT = .05
+BIKE_TURN_INCREMENT = .1
 BIKE_DECELERATION = .05
-REQUIRED_PROGRESS = 8000
+REQUIRED_PROGRESS = 4000
+FRICTION = .005
 
-GENERATION_SIZE = 10
+#GENERATION_SIZE = 250
 MUTATION_WEIGHT_MODIFY_CHANCE = 0.2 # how much to change neural net weights
 MUTATION_ARRAY_MIX_PERC = 0.5
 MUTATION_CUT_OFF = 0.1
@@ -106,13 +118,13 @@ MUTATION_MODIFY_CHANCE_LIMIT = 1 # likelihood that offspring modifies weight
 #MUTATION_WEIGHT_MODIFY_FACTOR = 0.9 # degree offset from fitness relativity that offspring modifies weight
 MUTATION_PCT_WEIGHTS_TO_CHANGE = .2
 
-NNET_INPUTS = 7
-NNET_HIDDEN = 4
-NNET_OUTPUTS = 2
-COMMAND_CHANCE_FORWARD = .35
-COMMAND_CHANCE_SLOW = .25
-COMMAND_CHANCE_TURN_RIGHT = .45
-COMMAND_CHANCE_TURN_LEFT = .55
+NNET_INPUTS = 5
+NNET_HIDDEN = 0
+NNET_OUTPUTS = 1
+COMMAND_CHANCE_FORWARD = 0
+COMMAND_CHANCE_SLOW = 0
+COMMAND_CHANCE_TURN_RIGHT = .25
+COMMAND_CHANCE_TURN_LEFT = .75
 
 COURSE_FILENAME = 'course_vertices.csv'
 COURSE_WIDTH=80

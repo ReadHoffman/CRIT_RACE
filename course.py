@@ -10,7 +10,7 @@ import math
 import operator
 import csv
 from shapely.geometry import LineString
-from itertools import cycle
+#from itertools import cycle
 
 class Course_Point:
     def __init__(self,pos):
@@ -182,8 +182,8 @@ class Course:
 
     def draw_game(self):
         pygame.draw.lines(self.gameDisplay, (100, 100, 100), True, [x.pos for x in self.course_points])
-        pygame.draw.lines(self.gameDisplay, (255, 255, 255), True, self.outer_verticies)
-        pygame.draw.lines(self.gameDisplay, (255, 255, 255), True, self.inner_verticies)
+        [pygame.draw.lines(self.gameDisplay, (255, 255, 255), True, outer_line) for outer_line in self.outer_lines]
+        [pygame.draw.lines(self.gameDisplay, (255, 255, 255), True, inner_line) for inner_line in self.inner_lines]
         [pygame.draw.lines(self.gameDisplay, (50, 50, 50), True, progress_line) for progress_line in self.progress_lines]
         
     def update_game(self):
