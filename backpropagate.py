@@ -4,21 +4,23 @@ Created on Wed Sep 23 16:42:37 2020
 
 @author: Read
 """
-import math
+
 import random
 import numpy as np
 import matplotlib.pyplot as plt
 
+random.seed(42)
+
 ##xor
-#training_dataset = [[[0,1],1], [ [0,0], 0], [[1,0],1],[[1,1],0] ]
+training_dataset = [[[0,1],[1]], [ [0,0], [0]], [[1,0],[1]],[[1,1],[0]] ]
 
 
-training_dataset = [ [ [1,4,5],[.1,.05] ] ]
+#training_dataset = [ [ [1,4,5],[.1,.05] ] ]
 testing_dataset = training_dataset.copy()
 
 inputs,target = training_dataset[0]
 
-LEARNING_RATE=.01
+LEARNING_RATE=.05
 
 class Node:
     def __init__(self,layer_id,node_id,network_part):
@@ -27,7 +29,7 @@ class Node:
         self.bias = .5
         self.dbias = None
         self.network_part = network_part
-        self.value = random.random()
+        self.value = random.random()-.5
         self.output = None
         self.error = None 
         self.target = None 
@@ -36,8 +38,11 @@ class Node:
         self.batch_errors = []
         
     def activation(self):
-        #activation
-        self.output =  1 / (1 + math.exp(-self.value))
+        #sigmoid
+#        self.output =  1 / (1 + math.exp(-self.value))
+        
+        #tanh
+        self.output = np.tanh(self.value)
     
     def calculate_error(self):
         self.error = ((self.output-self.target)**2)/2
@@ -46,7 +51,11 @@ class Node:
         self.derror = self.output-self.target
     
     def dactivation(self):
-        self.doutput =  self.output*(1-self.output)    
+        #d sigmoid
+#        self.doutput =  self.output*(1-self.output)   
+        
+        #d tanh
+        self.doutput = 1 - self.output*self.output
         
     def learn(self):
         self.value = self.bias-LEARNING_RATE*self.dbias    
@@ -196,7 +205,7 @@ class Network:
         while iteration<iterations:
             #pick a random training example
             inputs,targets = random.choice(training_dataset)
-            #x values input
+            #assign x values to input nodes
             for i, node in enumerate(self.network[0]):
                 node.value = inputs[i]
             
@@ -259,17 +268,13 @@ class Network:
             
         return test_ys
         
-net = Network([3,8,2])
+net = Network([2,5,1])
 net.create_nodes()
-#net.feed_forward()
-
-
 net.train(training_dataset,iterations=10000)
 plt.plot(net.total_error_history)
-#print('start error: ',net.total_error_history[0],'/// end error: ',net.total_error_history[-1])
 print(net.test(testing_dataset))
 
-# example dot product
+# example dot product to remind me how matrix multiplication works
 #matrix_input_test1 = [[1],[2]]
 #matrix_weight_test1 = [[1,2],[3,4],[5,6],[7,8],[9,10]]
 #np.dot(matrix_weight_test1,matrix_input_test1)
